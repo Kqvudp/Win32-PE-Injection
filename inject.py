@@ -36,7 +36,7 @@ def find_import_address(name):
         for import_fn in item.imports:
             if import_fn.name == name.encode():
                 return import_fn.address
-    raise 'Function not found'
+    raise Exception('Function not found')
 
 # Find the address of the MessageBoxW function
 MessageBoxWAddress = find_import_address('MessageBoxW')
@@ -71,14 +71,23 @@ captionAddress = shellcode_length + offset + imageBase
 textAddress = shellcode_length + caption_length + offset + imageBase
 oep_offset = oep - offset  
 
-# Define the shellcode to display the MessageBox and jump to the original entry point
+# Define the shellcode to check for VM and display the MessageBox
 code = f"""
-    push 0 ;
-    push {captionAddress} ;
-    push {textAddress} ;
-    push 0 ;
-    call [{MessageBoxWAddress}] ;
-    jmp {oep_offset} ;
+    mov eax, 0x564D5868
+    mov edx, 0x5658
+    in  eax, dx
+    cmp ebx, 0x564D5868
+    jne is_vm
+
+    push 0
+    push {captionAddress}
+    push {textAddress}
+    push 0
+    call [{MessageBoxWAddress}]
+    jmp {oep_offset}
+
+is_vm:
+    jmp {oep_offset}
 """
 
 # Assemble the shellcode using Keystone
